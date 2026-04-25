@@ -1,59 +1,211 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SmartFarm
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A multi-tenant farm management platform built with Laravel 13 and Filament 5. SmartFarm enables agricultural businesses to manage fields, crops, tasks, workforce, finances, and emergency alerts — all through a role-based admin interface with GPS tracking capabilities.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Table of Contents
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Requirements](#requirements)
+- [Setup Instructions](#setup-instructions)
+- [Default Credentials](#default-credentials)
+- [Running the Application](#running-the-application)
+- [Testing](#testing)
+- [Design Decisions](#design-decisions)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Requirements
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.4+
+- Composer
+- MySQL 8.0+
+- Node.js (for asset compilation)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Setup Instructions
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 1. Clone the repository
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone <repository-url>
+cd smartfarm
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Install dependencies
 
-## Contributing
+```bash
+composer install
+npm install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Configure environment
 
-## Code of Conduct
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Edit `.env` and set your database credentials:
 
-## Security Vulnerabilities
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=smartfarm
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 4. Run migrations and seed demo data
 
-## License
+```bash
+php artisan migrate --seed
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# smartfarm
+This creates three demo tenants with agents and field data (see [Default Credentials](#default-credentials)).
+
+### 5. Build frontend assets
+
+```bash
+npm run build
+```
+
+### One-command setup (alternative)
+
+```bash
+composer run setup
+```
+
+This runs install, key generation, migration, and asset build in sequence.
+
+---
+
+## Default Credentials
+
+After seeding, the following accounts are available:
+
+| Role  | Email                    | Password | Tenant              |
+|-------|--------------------------|----------|---------------------|
+| Admin | admin@smartfarm.test     | password | —                   |
+| Agent | john@greenvalley.test    | password | Green Valley Farm   |
+| Agent | jane@sunrise.test        | password | Sunrise Agriculture |
+| Agent | mike@bigfarm.test        | password | Big Farm Co.        |
+
+Admin users have no tenant — they have system-wide access. Agent users are scoped to their tenant.
+
+---
+
+## Running the Application
+
+### Development (concurrent processes)
+
+```bash
+composer run dev
+```
+
+Starts Laravel's dev server, queue worker, log watcher, and Vite in parallel.
+
+### Production
+
+```bash
+npm run build
+php artisan serve
+```
+
+### Panel URLs
+
+| Panel  | URL      | Access       |
+|--------|----------|--------------|
+| Admin  | `/admin` | Admin users  |
+| Agent  | `/agent` | Agent users  |
+
+---
+
+## Testing
+
+```bash
+php artisan test --compact
+```
+
+Filter to a specific test:
+
+```bash
+php artisan test --compact --filter=FieldTest
+```
+
+Tests use [Pest](https://pestphp.com/) with Laravel factories for test data. Do not use manual database setup in tests — factories are the source of truth.
+
+---
+
+## Design Decisions
+
+### Multi-tenancy
+
+All core domain entities — fields, tasks, work logs, expenses, revenues, payrolls, messages, and alerts — carry a `tenant_id` foreign key. This provides data isolation without a separate database per tenant. Admin users have `tenant_id = null` and are not scoped to any tenant, giving them system-wide visibility. Agents are always scoped to their tenant.
+
+This approach was chosen over database-per-tenant to simplify operations and migrations, and over package-based solutions (e.g. Stancl Tenancy) to keep the architecture transparent and easy to reason about at the current scale.
+
+### Role-based access with separate Filament panels
+
+Rather than one panel with conditional visibility, SmartFarm uses two distinct Filament panels:
+
+- **`/admin`** — full CRUD, financial management, user and tenant administration
+- **`/agent`** — scoped to the authenticated agent's fields and tasks only
+
+This eliminates complex conditional authorization logic in form/table schemas and makes each panel's intent clear. Custom middleware (`EnsureUserIsAdmin`, `EnsureUserIsAgent`) guard each panel at the route level.
+
+### GPS verification on tasks and work logs
+
+`Task` records store both a target GPS coordinate and a completion coordinate. A Haversine formula implementation on the model calculates whether the agent completed the task within a configurable `tolerance_meters` radius, setting `gps_verified = true/false`. Work logs similarly capture check-in and check-out coordinates. This enables accountability without requiring a separate location service.
+
+### Status workflows on domain models
+
+Rather than managing state in controllers, state transitions are model methods:
+
+- `Task`: `start()`, `complete()`, `cancel()`, `markOverdue()`
+- `WorkLog`: `checkIn()`, `checkOut()`, `approve()`, `reject()`
+- `Expense` / `Payroll`: approval methods with `approved_by` and `approved_at` timestamps
+
+This keeps business logic close to the data and makes it testable in isolation.
+
+### Computed field status
+
+`Field` has no stored `status` column. Instead, a computed attribute derives status at runtime:
+
+- **active** — a field update was recorded within the last 7 days
+- **at_risk** — no update in 7+ days
+- **completed** — explicitly marked done
+
+This avoids stale status values from missed updates or async jobs, at the cost of a small per-request computation (acceptable given field counts per tenant).
+
+### Eloquent query scopes over raw queries
+
+Domain models expose named scopes (`pending()`, `overdue()`, `forAgent()`, `thisWeek()`, etc.) to keep Filament resource queries readable and composable. This also makes the scopes reusable across admin and agent panels without duplication.
+
+### Form and table schemas extracted into classes
+
+Filament resources delegate their form and table definitions to dedicated classes (e.g. `FieldForm.php`, `FieldsTable.php`). This keeps resource files thin and allows schema logic to be tested and reused independently.
+
+### Financial tracking with approval workflows
+
+Expenses and revenues are tied to specific fields, enabling per-field profitability analysis. Expenses follow a `pending → approved → paid` workflow with an `approved_by` audit trail. Revenues record source type (harvest, livestock, rental, subsidy) for categorized income reporting.
+
+### Database-backed sessions, cache, and queues
+
+All three infrastructure concerns use the `database` driver by default. This removes Redis/Memcached as setup requirements for local development and staging, with a straightforward path to upgrading individual drivers as load demands it.
+
+---
+
+## Tech Stack
+
+| Layer        | Technology                  |
+|--------------|-----------------------------|
+| Framework    | Laravel 13                  |
+| Admin UI     | Filament 5                  |
+| Reactivity   | Livewire 4                  |
+| Frontend     | Tailwind CSS 4 + Vite       |
+| Database     | MySQL 8                     |
+| Testing      | Pest 4 + PHPUnit 12         |
+| PHP          | 8.4                         |
